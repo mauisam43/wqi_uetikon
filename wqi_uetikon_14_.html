@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wohnqualitätsindex · Uetikon am See</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+<script src="https://js.arcgis.com/4.29/"></script>
+
+<style>
+  :root {
+    --primaer:     #3A6B9E;
+    --sekundaer:   #4A8C5C;
+    --akzent:      #B85450;
+    --grau:        #BEBEBE;
+    --hintergrund: #F7F7F7;
+    --text:        #2D2D2D;
+    --panel:       #FFFFFF;
+    --border:      #DEDEDE;
+    --serif: 'Noto Serif', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--serif); background: var(--hintergrund); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+  .app-title { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 14px; font-weight: 600; color: var(--primaer); white-space: nowrap; }
+  .app-sub { font-family: var(--serif); font-size: 11px; font-style: italic; color: var(--grau); }
+
+  .search-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .search-wrap input { font-family: var(--serif); font-size: 12px; padding: 5px 10px; border: 1.5px solid var(--border); border-radius: 2px; background: var(--hintergrund); color: var(--text); width: 150px; outline: none; transition: border-color 0.15s; }
+  .search-wrap input:focus { border-color: var(--primaer); }
+  .search-wrap input::placeholder { color: var(--grau); font-style: italic; }
+  .search-btn { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 11px; font-weight: 600; padding: 5px 14px; background: var(--primaer); color: #fff; border: none; border-radius: 2px; cursor: pointer; }
+  .search-btn:hover { opacity: 0.85; }
+
+  .search-tab-group { display: flex; border: 1.5px solid var(--border); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .search-tab { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; font-weight: 500; padding: 5px 10px; border: none; background: transparent; color: #888; cursor: pointer; transition: all 0.15s; }
+  .search-tab.active { background: var(--primaer); color: #fff; }
+  .search-input-wrap { position: relative; }
+  .search-input-wrap input { font-family: var(--serif); font-size: 12px; padding: 5px 10px; border: 1.5px solid var(--border); border-radius: 2px; background: var(--hintergrund); color: var(--text); width: 180px; outline: none; transition: border-color 0.15s; }
+  .search-input-wrap input:focus { border-color: var(--primaer); }
+  .search-input-wrap input::placeholder { color: var(--grau); font-style: italic; }
+  .suggestions-box { display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 280px; background: var(--panel); border: 1px solid var(--border); border-radius: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 200; max-height: 200px; overflow-y: auto; }
+  .suggestion-item { padding: 8px 12px; font-size: 11px; color: var(--text); cursor: pointer; border-bottom: 1px solid var(--border); font-family: var(--serif); transition: background 0.1s; }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover { background: var(--hintergrund); }
+  .suggestion-item strong { display: block; font-weight: 600; color: var(--primaer); }
+
+  .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+  #viewDiv { flex: 1; height: 100%; }
+
+  .legend-panel { position: absolute; bottom: 28px; left: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; z-index: 10; pointer-events: none; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .legend-title { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 7px; }
+  .legend-bar { width: 150px; height: 9px; border-radius: 2px; background: linear-gradient(to right, #C3423F, #EFE6C9, #418F58); margin-bottom: 4px; }
+  .legend-labels { display: flex; justify-content: space-between; font-size: 9px; color: #888; font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; width: 150px; }
+
+  .basemap-switcher { position: absolute; bottom: 28px; right: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 8px 12px; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .basemap-label { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #aaa; margin-bottom: 6px; }
+  .basemap-options { display: flex; gap: 4px; }
+  .basemap-opt { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; font-weight: 500; padding: 4px 10px; border: 1.5px solid var(--border); border-radius: 2px; background: transparent; color: #888; cursor: pointer; transition: all 0.15s; }
+  .basemap-opt:hover { border-color: var(--primaer); color: var(--primaer); }
+  .basemap-opt.active { background: var(--primaer); border-color: var(--primaer); color: #fff; }
+
+  .popup-overlay { display: none; position: absolute; top: 0; right: 0; width: 270px; height: 100%; background: var(--panel); border-left: 1px solid var(--border); z-index: 20; flex-direction: column; box-shadow: -2px 0 12px rgba(0,0,0,0.06); animation: slideIn 0.18s ease; }
+  .popup-overlay.visible { display: flex; }
+  @keyframes slideIn { from { transform: translateX(16px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .popup-header { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; background: var(--hintergrund); }
+  .popup-egid { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 15px; font-weight: 600; color: var(--primaer); }
+  .popup-gemeinde { font-size: 11px; color: #888; margin-top: 2px; font-style: italic; }
+  .popup-close { background: none; border: none; font-size: 20px; color: var(--grau); cursor: pointer; }
+  .popup-close:hover { color: var(--text); }
+  .popup-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .section-label { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #aaa; margin-bottom: 10px; }
+  .big-score { text-align: center; padding: 10px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .big-score-num { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 38px; font-weight: 700; line-height: 1; }
+  .big-score-label { font-size: 10px; color: #aaa; margin-top: 3px; font-style: italic; }
+  .dim-row { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .dim-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dim-label { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; color: var(--text); flex: 1; }
+  .dim-bar-track { width: 70px; height: 5px; background: #EBEBEB; border-radius: 10px; overflow: hidden; }
+  .dim-bar-fill { height: 100%; border-radius: 10px; transition: width 0.4s ease; }
+  .dim-val { font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; font-weight: 600; width: 28px; text-align: right; }
+  .quality-wrap { margin-top: 14px; }
+  .quality-badge { display: inline-flex; align-items: center; gap: 5px; font-family: 'Avenir Next World','Avenir Next','Avenir',sans-serif; font-size: 10px; padding: 3px 9px; border-radius: 10px; }
+  .q-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .quality-hoch   { background: #eaf4ed; color: #2e7d32; }
+  .quality-mittel { background: #fff8e1; color: #e65100; }
+  .quality-tief   { background: #fdecea; color: #c62828; }
+
+  .loading-overlay { position: absolute; inset: 0; background: rgba(247,247,247,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; gap: 14px; }
+  .loading-text { font-family: var(--serif); font-size: 13px; font-style: italic; color: var(--primaer); }
+  .spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--primaer); border-radius: 50%; animation: spin 0.75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; font-family: var(--serif); font-size: 11px; font-style: italic; padding: 7px 16px; border-radius: 2px; z-index: 100; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  /* ============================================================
+     MOBILE / TABLET RESPONSIVE
+     Greift nur auf schmalen Bildschirmen – Desktop bleibt unberührt.
+     ============================================================ */
+  @media (max-width: 768px) {
+
+    body { height: 100dvh; }
+
+    /* ── Kopfzeile ── */
+    header { padding: 7px 10px; gap: 6px 8px; row-gap: 7px; }
+    .app-title { font-size: 12px; line-height: 1.2; }
+    .app-sub { font-size: 10px; }
+
+    /* Suche in eigene Zeile: Tabs + Eingabe (füllt) + Knopf */
+    .search-wrap { flex-basis: 100%; margin-left: 0; gap: 6px; flex-wrap: wrap; }
+    .search-tab-group { flex-shrink: 0; }
+    .search-tab { font-size: 11px; padding: 7px 11px; }
+    .search-input-wrap { flex: 1 1 auto; min-width: 0; }
+    .search-wrap input,
+    .search-input-wrap input {
+      width: 100%;
+      font-size: 16px;          /* >=16px verhindert Auto-Zoom auf iOS */
+      padding: 7px 9px;
+    }
+    .search-btn { flex-shrink: 0; font-size: 12px; padding: 7px 14px; }
+    .suggestions-box { width: 100%; left: 0; right: 0; max-height: 45vh; }
+
+    /* ── Legende: kompakt, links unten ── */
+    .legend-panel { bottom: 14px; left: 8px; padding: 8px 10px; max-width: 44vw; }
+    .legend-bar,
+    .legend-labels { width: 100%; min-width: 90px; }
+    .legend-title { font-size: 9px; margin-bottom: 5px; }
+
+    /* ── Darstellungs-Umschalter: kompakt, Buttons füllen die Zeile ── */
+    .basemap-switcher {
+      bottom: 14px;
+      right: 8px;
+      padding: 4px 4px;
+      max-width: 38vw;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+    }
+    .basemap-label { font-size: 8px; margin-bottom: 3px; letter-spacing: 0.3px; }
+    .basemap-options { flex-wrap: wrap; gap: 2px; }
+    .basemap-opt {
+      flex: 1 1 auto;
+      text-align: center;
+      font-size: 8px;
+      padding: 3px 4px;
+      border-width: 1px;
+    }
+
+    /* ── Detail-Popup: auf dem Handy volle Breite statt schmale Seitenleiste ── */
+    .popup-overlay { width: 100%; border-left: none; box-shadow: none; }
+    .popup-header { padding: 12px 14px 10px; }
+    .popup-egid { font-size: 14px; }
+    .popup-body { padding: 12px 14px 16px; }
+
+    .toast { bottom: 80px; max-width: 90vw; white-space: normal; text-align: center; }
+  }
+
+  /* Sehr schmale Geräte: enger & kleinere Schrift */
+  @media (max-width: 400px) {
+    .app-title { font-size: 11px; }
+    .search-tab { padding: 7px 9px; font-size: 10px; }
+    .basemap-switcher { padding: 3px 3px; max-width: 36vw; }
+    .basemap-label { font-size: 8px; margin-bottom: 2px; }
+    .basemap-opt { font-size: 8px; padding: 2px 4px; }
+  }
+
+  /* Bewegungsreduktion respektieren */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="app-title">Wohnqualitätsindex · Uetikon am See</span>
+  <span class="app-sub">Basis-Szenario · 1133 Wohngebäude</span>
+  <div class="search-wrap">
+    <div class="search-tab-group">
+      <button class="search-tab active" data-tab="egid">EGID</button>
+      <button class="search-tab" data-tab="adresse">Adresse</button>
+    </div>
+    <div id="searchEGIDWrap" class="search-input-wrap">
+      <input type="text" id="egidInput" placeholder="z.B. 79087" inputmode="numeric" />
+    </div>
+    <div id="searchAdresseWrap" class="search-input-wrap" style="display:none; position:relative;">
+      <input type="text" id="adresseInput" placeholder="Adresse suchen…" autocomplete="off" />
+      <div id="adresseSuggestions" class="suggestions-box"></div>
+    </div>
+    <button class="search-btn" id="searchBtn">Suchen</button>
+  </div>
+</header>
+
+<div class="main">
+  <div id="viewDiv"></div>
+
+  <div class="legend-panel">
+    <div class="legend-title">WQI-Score (Basis)</div>
+    <div class="legend-bar"></div>
+    <div class="legend-labels"><span>tief</span><span>5</span><span>hoch</span></div>
+  </div>
+
+  <div class="basemap-switcher">
+    <div class="basemap-label">Darstellung</div>
+    <div class="basemap-options">
+      <button class="basemap-opt active" data-basemap="color">Farbig</button>
+      <button class="basemap-opt" data-basemap="gray">Grau</button>
+      <button class="basemap-opt" data-basemap="colorblind">Farbsehschwäche</button>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="popupPanel">
+    <div class="popup-header">
+      <div>
+        <div class="popup-egid" id="popupEGID">–</div>
+        <div class="popup-gemeinde">Uetikon am See</div>
+      </div>
+      <button class="popup-close" id="popupClose">×</button>
+    </div>
+    <div class="popup-body">
+      <div class="big-score">
+        <div class="big-score-num" id="bigScoreNum">–</div>
+        <div class="big-score-label">WQI Basis-Szenario</div>
+      </div>
+      <div class="section-label">Dimensionen</div>
+      <div class="dim-row">
+        <div class="dim-dot" style="background:#4A8C5C;"></div>
+        <span class="dim-label">Umwelt</span>
+        <div class="dim-bar-track"><div class="dim-bar-fill" id="dim_bar_umwelt" style="background:#4A8C5C;"></div></div>
+        <span class="dim-val" id="dim_val_umwelt">–</span>
+      </div>
+      <div class="dim-row">
+        <div class="dim-dot" style="background:#3A6B9E;"></div>
+        <span class="dim-label">Standort</span>
+        <div class="dim-bar-track"><div class="dim-bar-fill" id="dim_bar_standort" style="background:#3A6B9E;"></div></div>
+        <span class="dim-val" id="dim_val_standort">–</span>
+      </div>
+      <div class="dim-row">
+        <div class="dim-dot" style="background:#B85450;"></div>
+        <span class="dim-label">Gebäude</span>
+        <div class="dim-bar-track"><div class="dim-bar-fill" id="dim_bar_gebaeude" style="background:#B85450;"></div></div>
+        <span class="dim-val" id="dim_val_gebaeude">–</span>
+      </div>
+      <div class="quality-wrap">
+        <div class="section-label" style="margin-bottom:6px;">Datenqualität</div>
+        <span class="quality-badge" id="qualityBadge">
+          <span class="q-dot" id="qualityDot"></span>
+          <span id="qualityText">–</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Karte wird geladen…</div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+require([
+  "esri/Basemap",
+  "esri/WebMap",
+  "esri/views/MapView",
+  "esri/layers/FeatureLayer"
+], function(Basemap, WebMap, MapView, FeatureLayer) {
+
+  const WEBMAP_IDS = {
+    color:      "e9a6fbf657114a4c83df57d54e45d6c6",
+    gray:       "8f878b35b440488db59311ee07d9a940",
+    colorblind: "ec4d613ccb8d4ac49aae04ccca4e43ee"
+  };
+  const GRAY_ID = "8f878b35b440488db59311ee07d9a940";
+  const FEATURE_URL = "https://services2.arcgis.com/9N9SahQkXAzBgwts/arcgis/rest/services/wqi_uetikon_basis/FeatureServer/0";
+
+  let view = null;
+  let activeBasemap = "color";
+  let highlightGraphic = null;
+
+  function scoreToColor(v) {
+    if (v == null) return "#BEBEBE";
+    const t = Math.max(0, Math.min(1, v / 10));
+    const hoch = activeBasemap === "colorblind" ? "#3A6B9E" : "#418F58";
+    if (t < 0.5) return lerpColor("#C3423F", "#EFE6C9", t / 0.5);
+    return lerpColor("#EFE6C9", hoch, (t - 0.5) / 0.5);
+  }
+  function lerpColor(a, b, t) {
+    const ah=a.replace('#',''), bh=b.replace('#','');
+    const ar=parseInt(ah.slice(0,2),16),ag=parseInt(ah.slice(2,4),16),ab=parseInt(ah.slice(4,6),16);
+    const br=parseInt(bh.slice(0,2),16),bg=parseInt(bh.slice(2,4),16),bb=parseInt(bh.slice(4,6),16);
+    return `rgb(${Math.round(ar+(br-ar)*t)},${Math.round(ag+(bg-ag)*t)},${Math.round(ab+(bb-ab)*t)})`;
+  }
+
+  async function loadMap(center, zoom) {
+    const loading = document.getElementById("loadingOverlay");
+    loading.style.display = "flex";
+    if (view) { view.destroy(); view = null; }
+
+    const webmap = new WebMap({ portalItem: { id: WEBMAP_IDS[activeBasemap] } });
+    await webmap.load();
+
+    view = new MapView({
+      container: "viewDiv",
+      map: webmap,
+      ui: { components: ["zoom"] },
+      popup: { autoOpenEnabled: false }
+    });
+
+    await view.when();
+    view.goTo({ center: center || [8.687, 47.266], zoom: zoom || 15 }, { animate: false });
+    loading.style.display = "none";
+
+    view.on("click", async (evt) => {
+      try {
+        const layer = new FeatureLayer({ url: FEATURE_URL });
+        const q = layer.createQuery();
+        q.geometry = evt.mapPoint;
+        q.distance = 25;
+        q.units = "meters";
+        q.spatialRelationship = "intersects";
+        q.outFields = ["EGID","score_basis","score_dim_umwelt","score_dim_standort","score_dim_gebaeude","datenqualitaet"];
+        q.returnGeometry = false;
+        const result = await layer.queryFeatures(q);
+        if (result.features && result.features.length > 0) {
+          highlightPoint(evt.mapPoint);
+          openPopup(result.features[0].attributes, evt.mapPoint);
+        } else {
+          closePopup();
+        }
+      } catch(e) { console.error(e); }
+    });
+  }
+
+  // Basemap toggle
+  function updateLegendColors() {
+    const hoch = activeBasemap === "colorblind" ? "#3A6B9E" : "#418F58";
+    document.querySelectorAll(".legend-bar").forEach(el => {
+      el.style.background = `linear-gradient(to right, #C3423F, #EFE6C9, ${hoch})`;
+    });
+  }
+
+  document.querySelectorAll(".basemap-opt").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.basemap === activeBasemap) return;
+      document.querySelectorAll(".basemap-opt").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeBasemap = btn.dataset.basemap;
+      updateLegendColors();
+      const c = view ? [view.center.longitude, view.center.latitude] : null;
+      const z = view ? view.zoom : 14;
+      loadMap(c, z);
+    });
+  });
+
+  // Highlight
+  function highlightPoint(geometry) {
+    if (highlightGraphic && view.graphics) view.graphics.remove(highlightGraphic);
+    const g = { geometry, symbol: { type: "simple-marker", style: "circle", color: [255,255,255,0], size: 20, outline: { color: "#3A6B9E", width: 2.5 } } };
+    view.graphics.add(g);
+    highlightGraphic = view.graphics.getItemAt(view.graphics.length - 1);
+  }
+
+  function clearHighlight() {
+    if (highlightGraphic && view && view.graphics) view.graphics.remove(highlightGraphic);
+    highlightGraphic = null;
+  }
+
+  // Popup
+  function openPopup(attrs) {
+    document.getElementById("popupPanel").classList.add("visible");
+    document.getElementById("popupEGID").textContent = "EGID " + (attrs.EGID != null ? attrs.EGID.toString() : "–");
+    const v = attrs.score_basis;
+    const big = document.getElementById("bigScoreNum");
+    big.textContent = v != null ? v.toFixed(2) : "–";
+    big.style.color = scoreToColor(v);
+    [["umwelt","#4A8C5C"],["standort","#3A6B9E"],["gebaeude","#B85450"]].forEach(([key]) => {
+      const val = attrs["score_dim_" + key];
+      document.getElementById("dim_bar_"+key).style.width = val != null ? (val/10*100).toFixed(1)+"%" : "0%";
+      document.getElementById("dim_val_"+key).textContent = val != null ? val.toFixed(2) : "–";
+    });
+    const dq = (attrs.datenqualitaet || "").toLowerCase();
+    const badge = document.getElementById("qualityBadge");
+    const dot = document.getElementById("qualityDot");
+    const qtxt = document.getElementById("qualityText");
+    if (dq.includes("hoch"))        { badge.className="quality-badge quality-hoch";   dot.style.background="#2e7d32"; qtxt.textContent="Hoch"; }
+    else if (dq.includes("mittel")) { badge.className="quality-badge quality-mittel"; dot.style.background="#e65100"; qtxt.textContent="Mittel"; }
+    else if (dq.includes("tief"))   { badge.className="quality-badge quality-tief";   dot.style.background="#c62828"; qtxt.textContent="Tief"; }
+    else { badge.className="quality-badge"; qtxt.textContent=attrs.datenqualitaet||"–"; }
+  }
+
+  function closePopup() {
+    document.getElementById("popupPanel").classList.remove("visible");
+    clearHighlight();
+  }
+  document.getElementById("popupClose").addEventListener("click", closePopup);
+
+  // ── SEARCH TAB TOGGLE ──
+  let activeSearchTab = "egid";
+  document.querySelectorAll(".search-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".search-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeSearchTab = btn.dataset.tab;
+      document.getElementById("searchEGIDWrap").style.display    = activeSearchTab === "egid"    ? "" : "none";
+      document.getElementById("searchAdresseWrap").style.display = activeSearchTab === "adresse" ? "" : "none";
+      document.getElementById("adresseSuggestions").style.display = "none";
+    });
+  });
+
+  // ── EGID SEARCH ──
+  document.getElementById("egidInput").addEventListener("input", function() {
+    this.value = this.value.replace(/[^0-9]/g, "");
+  });
+
+  async function searchEGID() {
+    const raw = document.getElementById("egidInput").value.trim();
+    const egid = parseInt(raw, 10);
+    if (!raw || isNaN(egid)) { showToast("Bitte eine gültige EGID eingeben."); return; }
+    showToast("Suche EGID " + egid + " …");
+    try {
+      const layer = new FeatureLayer({ url: FEATURE_URL });
+      const q = layer.createQuery();
+      q.where = `EGID = ${egid}`;
+      q.outFields = ["EGID","score_basis","score_dim_umwelt","score_dim_standort","score_dim_gebaeude","datenqualitaet"];
+      q.returnGeometry = true;
+      q.outSpatialReference = { wkid: 4326 };
+      const result = await layer.queryFeatures(q);
+      if (!result.features || !result.features.length) { showToast("EGID " + egid + " nicht gefunden."); return; }
+      const feat = result.features[0];
+      const geom = feat.geometry;
+      view.goTo({ center: [geom.longitude ?? geom.x, geom.latitude ?? geom.y], zoom: 17 }, { duration: 900 });
+      highlightPoint(geom);
+      openPopup(feat.attributes);
+      showToast("EGID " + egid + " gefunden ✓");
+    } catch(e) { showToast("Fehler bei der Suche."); console.error(e); }
+  }
+
+  document.getElementById("searchBtn").addEventListener("click", () => {
+    if (activeSearchTab === "egid") searchEGID();
+    else { const q = document.getElementById("adresseInput").value.trim(); if (q) geocodeAndGo("", q); }
+  });
+  document.getElementById("egidInput").addEventListener("keydown", e => { if (e.key === "Enter") searchEGID(); });
+  document.getElementById("adresseInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") { const q = e.target.value.trim(); if (q) { document.getElementById("adresseSuggestions").style.display="none"; geocodeAndGo("",q); } }
+  });
+
+  // ── ADDRESS SEARCH ──
+  let geocodeTimer = null;
+  document.getElementById("adresseInput").addEventListener("input", function() {
+    const q = this.value.trim();
+    clearTimeout(geocodeTimer);
+    const box = document.getElementById("adresseSuggestions");
+    if (q.length < 3) { box.style.display = "none"; return; }
+    geocodeTimer = setTimeout(() => fetchSuggestions(q), 300);
+  });
+
+  async function fetchSuggestions(q) {
+    const box = document.getElementById("adresseSuggestions");
+    try {
+      const params = new URLSearchParams({ text: q + ", Uetikon am See, Schweiz", maxSuggestions: 5, countryCode: "CHE", f: "json" });
+      const resp = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params}`);
+      const data = await resp.json();
+      const suggestions = data.suggestions || [];
+      box.innerHTML = "";
+      if (!suggestions.length) { box.style.display = "none"; return; }
+      suggestions.forEach(s => {
+        const item = document.createElement("div");
+        item.className = "suggestion-item";
+        item.innerHTML = `<strong>${s.text.split(",")[0]}</strong>${s.text.split(",").slice(1).join(",")}`;
+        item.addEventListener("click", () => geocodeAndGo(s.magicKey, s.text));
+        box.appendChild(item);
+      });
+      box.style.display = "block";
+    } catch(e) { box.style.display = "none"; }
+  }
+
+  async function geocodeAndGo(magicKey, text) {
+    document.getElementById("adresseInput").value = text.split(",")[0];
+    document.getElementById("adresseSuggestions").style.display = "none";
+    showToast("Suche Adresse…");
+    try {
+      const params = new URLSearchParams({ SingleLine: text, magicKey, outFields: "Match_addr", outSR: 4326, f: "json" });
+      const resp = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params}`);
+      const data = await resp.json();
+      const candidates = data.candidates || [];
+      if (!candidates.length) { showToast("Adresse nicht gefunden."); return; }
+      const loc = candidates[0].location;
+      view.goTo({ center: [loc.x, loc.y], zoom: 17 }, { duration: 900 });
+      highlightPoint({ type: "point", longitude: loc.x, latitude: loc.y, spatialReference: { wkid: 4326 } });
+      showToast(text.split(",")[0] + " ✓");
+    } catch(e) { showToast("Fehler bei der Adresssuche."); }
+  }
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest("#searchAdresseWrap")) document.getElementById("adresseSuggestions").style.display = "none";
+  });
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+  }
+
+  loadMap();
+});
+</script>
+</body>
+</html>
